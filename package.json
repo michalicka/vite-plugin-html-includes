@@ -1,0 +1,24 @@
+{
+  "name": "vite-plugin-html-includes",
+  "version": "1.0.0",
+  "description": "Plugin for Vite that replaces include tags with corresponding HTML components",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kingkongdevs/vite-plugin-html-includes.git"
+  },
+  "author": "King Kong Devs",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kingkongdevs/vite-plugin-html-includes/issues"
+  },
+  "homepage": "https://github.com/kingkongdevs/vite-plugin-html-includes#readme",
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "node-html-parser": "^6.1.12",
+    "path": "^0.12.7"
+  }
+}
