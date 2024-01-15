@@ -1,13 +1,49 @@
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { parse } from 'node-html-parser';
+const { readFileSync } = require('fs');
+const { resolve } = require('path');
+const { parse } = require('node-html-parser');
 
 function viteHTMLIncludes(options = {}) {
     const { componentsPath = '/components/' } = options;
     let config;
 
+    function evaluateCondition(condition, locals) {
+        try {
+            return new Function('locals', `return ${condition}`)({ ...locals });
+        } catch (e) {
+            console.error(`Error evaluating condition: ${condition}`, e);
+            return false; // default to false if there's an error
+        }
+    }
+
     function evaluateExpression(expression, locals) {
-        return new Function('locals', `with (locals) { return ${expression}; }`)(locals);
+        try {
+            return new Function('locals', `with (locals) { return ${expression}; }`)({ ...locals });
+        } catch (e) {
+            console.error(`Error evaluating expression: ${expression}`, e);
+            return undefined; // return undefined or a default value if there's an error
+        }
+    }
+
+
+    function processConditionals(fragment, locals) {
+        fragment.querySelectorAll('if').forEach(node => {
+            const condition = node.getAttribute('condition');
+            const elseNode = node.nextElementSibling.tagName === 'ELSE' ? node.nextElementSibling : null;
+
+            if (evaluateCondition(condition, locals)) {
+                node.replaceWith(...node.childNodes);
+            } else {
+                node.remove();
+            }
+
+            if (elseNode) {
+                if (!evaluateCondition(condition, locals)) {
+                    elseNode.replaceWith(...elseNode.childNodes);
+                } else {
+                    elseNode.remove();
+                }
+            }
+        });
     }
 
     function processSwitchCases(fragment, locals) {
@@ -76,6 +112,7 @@ function viteHTMLIncludes(options = {}) {
                 if (localsString) {
                     try {
                         locals = JSON.parse(localsString);
+                        console.log('Locals:', locals); // Add this log to check locals content
                     } catch (e) {
                         console.error(`Error parsing locals JSON: ${localsString}`, e);
                     }
@@ -103,4 +140,4 @@ function viteHTMLIncludes(options = {}) {
     };
 }
 
-export default viteHTMLIncludes;
+module.exports = viteHTMLIncludes;
