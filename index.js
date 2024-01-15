@@ -105,7 +105,6 @@ function viteHTMLIncludes(options = {}) {
                 if (localsString) {
                     try {
                         locals = JSON.parse(localsString);
-                        console.log(locals);
                     } catch (e) {
                         console.error(`Error parsing locals JSON: ${localsString}`, e);
                     }
