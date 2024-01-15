@@ -6,38 +6,31 @@ function viteHTMLIncludes(options = {}) {
     const { componentsPath = '/components/' } = options;
     let config;
 
-    function evaluateCondition(condition, locals) {
+    function evaluateWithLocals(code, locals) {
         try {
-            return new Function('locals', `return ${condition}`)({ ...locals });
+            const args = Object.keys(locals);
+            const values = Object.values(locals);
+            const func = new Function(...args, `return ${code};`);
+            return func(...values);
         } catch (e) {
-            console.error(`Error evaluating condition: ${condition}`, e);
-            return false; // default to false if there's an error
+            console.error(`Error evaluating code: ${code}`, e);
+            return false; // For conditions. For expressions, adjust as needed.
         }
     }
-
-    function evaluateExpression(expression, locals) {
-        try {
-            return new Function('locals', `with (locals) { return ${expression}; }`)({ ...locals });
-        } catch (e) {
-            console.error(`Error evaluating expression: ${expression}`, e);
-            return undefined; // return undefined or a default value if there's an error
-        }
-    }
-
 
     function processConditionals(fragment, locals) {
         fragment.querySelectorAll('if').forEach(node => {
             const condition = node.getAttribute('condition');
             const elseNode = node.nextElementSibling.tagName === 'ELSE' ? node.nextElementSibling : null;
 
-            if (evaluateCondition(condition, locals)) {
+            if (evaluateWithLocals(condition, locals)) {
                 node.replaceWith(...node.childNodes);
             } else {
                 node.remove();
             }
 
             if (elseNode) {
-                if (!evaluateCondition(condition, locals)) {
+                if (!evaluateWithLocals(condition, locals)) {
                     elseNode.replaceWith(...elseNode.childNodes);
                 } else {
                     elseNode.remove();
@@ -49,12 +42,12 @@ function viteHTMLIncludes(options = {}) {
     function processSwitchCases(fragment, locals) {
         fragment.querySelectorAll('switch').forEach(switchNode => {
             const expression = switchNode.getAttribute('expression');
-            const expressionValue = evaluateExpression(expression, locals);
+            const expressionValue = evaluateWithLocals(expression, locals);
             let hasMatched = false;
 
             switchNode.childNodes.forEach(child => {
                 if (child.tagName === 'CASE' && !hasMatched) {
-                    const caseValue = evaluateExpression(child.getAttribute('n'), locals);
+                    const caseValue = evaluateWithLocals(child.getAttribute('n'), locals);
                     if (caseValue === expressionValue) {
                         hasMatched = true;
                         child.replaceWith(...child.childNodes);
@@ -73,8 +66,8 @@ function viteHTMLIncludes(options = {}) {
     function processEachLoops(fragment, locals) {
         fragment.querySelectorAll('each').forEach(eachNode => {
             const loop = eachNode.getAttribute('loop');
-            const [item, index, arrayExpression] = /(\w+),\s*(\w+)\s*in\s*(\w+)/.exec(loop) || [];
-            const array = evaluateExpression(arrayExpression, locals);
+            const [match, item, index, arrayExpression] = /(\w+),\s*(\w+)\s*in\s*(\w+)/.exec(loop) || [];
+            const array = evaluateWithLocals(arrayExpression, locals);
             if (!array) return;
 
             const nodesToReplace = [];
@@ -112,7 +105,7 @@ function viteHTMLIncludes(options = {}) {
                 if (localsString) {
                     try {
                         locals = JSON.parse(localsString);
-                        console.log('Locals:', locals); // Add this log to check locals content
+                        console.log(locals);
                     } catch (e) {
                         console.error(`Error parsing locals JSON: ${localsString}`, e);
                     }
