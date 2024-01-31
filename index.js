@@ -82,6 +82,20 @@ function viteHTMLIncludes(options = {}) {
         });
     }
 
+    function ensureClosedIncludeTags(html) {
+        // This regex finds <include> tags and ensures they are self-closing or properly closed
+        const regex = /<include(.*?)>(?!(<\/include>))/g;
+        return html.replace(regex, (match, attributes) => {
+            // Check if it's already self-closing
+            if (attributes.trim().endsWith('/')) {
+                return match; // No change required
+            } else {
+                // Convert to self-closing tag for simplicity
+                return `<include${attributes.trimEnd()} />`;
+            }
+        });
+    }
+
     function processTemplate(fragment, locals) {
         processConditionals(fragment, locals);
         processSwitchCases(fragment, locals);
@@ -96,6 +110,9 @@ function viteHTMLIncludes(options = {}) {
             config = resolvedConfig;
         },
         transformIndexHtml(html) {
+            // Preprocess HTML to ensure <include> tags are closed
+            html = ensureClosedIncludeTags(html);
+
             const root = parse(html);
             root.querySelectorAll('include').forEach(node => {
                 const src = node.getAttribute('src');
