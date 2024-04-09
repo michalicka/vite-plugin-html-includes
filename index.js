@@ -7,6 +7,11 @@ function viteHTMLIncludes(options = {}) {
     let config;
 
     function evaluateWithLocals(code, locals) {
+        console.log('inside evaluateWithLocals');
+        console.log('code');
+        console.log(code);
+        console.log('locals');
+        console.log(locals);
         try {
             const args = Object.keys(locals);
             const values = Object.values(locals);
@@ -82,6 +87,25 @@ function viteHTMLIncludes(options = {}) {
         });
     }
 
+    function replaceVariables(fragment, locals) {
+        const variableRegex = /\{\{(\w+)\}\}/g; // Regex to match {{variableName}}
+        fragment.querySelectorAll('*').forEach(node => {
+            if (node.nodeType === 3) { // Node.TEXT_NODE
+                let textContent = node.textContent;
+                let match;
+                while ((match = variableRegex.exec(textContent)) !== null) {
+                    const variableName = match[1];
+                    const value = locals[variableName];
+                    if (value !== undefined) {
+                        textContent = textContent.replace(match[0], value);
+                    }
+                }
+                node.textContent = textContent;
+            }
+        });
+    }
+
+
     function ensureClosedIncludeTags(html) {
         // This regex finds <include> tags and ensures they are self-closing or properly closed
         const regex = /<include(.*?)>(?!(<\/include>))/g;
@@ -100,6 +124,8 @@ function viteHTMLIncludes(options = {}) {
         processConditionals(fragment, locals);
         processSwitchCases(fragment, locals);
         processEachLoops(fragment, locals);
+
+        replaceVariables(fragment, locals); // Add this line to replace variables
         // Implement other template processing functions here if needed
     }
 
@@ -115,6 +141,8 @@ function viteHTMLIncludes(options = {}) {
 
             const root = parse(html);
             root.querySelectorAll('include').forEach(node => {
+                console.log(node);
+                console.log('node');
                 const src = node.getAttribute('src');
                 const localsString = node.getAttribute('locals');
                 let locals = {};
@@ -126,6 +154,8 @@ function viteHTMLIncludes(options = {}) {
                         console.error(`Error parsing locals JSON: ${localsString}`, e);
                     }
                 }
+                console.log('locals');
+                console.log(locals);
 
                 if (!src) return;
 
@@ -134,6 +164,9 @@ function viteHTMLIncludes(options = {}) {
                 try {
                     let content = readFileSync(filePath, 'utf-8');
                     let fragment = parse(content);
+
+                    console.log('fragment');
+                    console.log(fragment);
 
                     // Process the entire template
                     processTemplate(fragment, locals);
