@@ -7,11 +7,6 @@ function viteHTMLIncludes(options = {}) {
     let config;
 
     function evaluateWithLocals(code, locals) {
-        console.log('inside evaluateWithLocals');
-        console.log('code');
-        console.log(code);
-        console.log('locals');
-        console.log(locals);
         try {
             const args = Object.keys(locals);
             const values = Object.values(locals);
@@ -87,24 +82,26 @@ function viteHTMLIncludes(options = {}) {
         });
     }
 
-    function replaceVariables(fragment, locals) {
-        const variableRegex = /\{\{(\w+)\}\}/g; // Regex to match {{variableName}}
+    function replaceLocals(fragment, locals) {
+        const variableRegex = /\{\{\s*(\w+)\s*\}\}/g; // Regex to match {{variableName}}
         fragment.querySelectorAll('*').forEach(node => {
-            if (node.nodeType === 3) { // Node.TEXT_NODE
+            
+            if (node.nodeType === 1) { 
+                // Replace variables in text content
                 let textContent = node.textContent;
-                let match;
-                while ((match = variableRegex.exec(textContent)) !== null) {
-                    const variableName = match[1];
-                    const value = locals[variableName];
-                    if (value !== undefined) {
-                        textContent = textContent.replace(match[0], value);
-                    }
-                }
-                node.textContent = textContent;
+                node.textContent = textContent.replace(variableRegex, (match, variableName) => {
+                    return locals[variableName] !== undefined ? locals[variableName] : match;
+                });
+
+                // Replace variables in attributes
+                Object.keys(node.attributes).forEach(attr => {
+                    node.setAttribute(attr, node.attributes[attr].replace(variableRegex, (match, variableName) => {
+                        return locals[variableName] !== undefined ? locals[variableName] : match;
+                    }));
+                });
             }
         });
     }
-
 
     function ensureClosedIncludeTags(html) {
         // This regex finds <include> tags and ensures they are self-closing or properly closed
@@ -125,8 +122,9 @@ function viteHTMLIncludes(options = {}) {
         processSwitchCases(fragment, locals);
         processEachLoops(fragment, locals);
 
-        replaceVariables(fragment, locals); // Add this line to replace variables
-        // Implement other template processing functions here if needed
+        if(Object.keys(locals).length != 0) {
+            replaceLocals(fragment, locals); //Replace the variables
+        }
     }
 
     return {
@@ -154,9 +152,6 @@ function viteHTMLIncludes(options = {}) {
                         console.error(`Error parsing locals JSON: ${localsString}`, e);
                     }
                 }
-                console.log('locals');
-                console.log(locals);
-
                 if (!src) return;
 
                 const filePath = resolve(config.root + componentsPath + src);
@@ -164,9 +159,6 @@ function viteHTMLIncludes(options = {}) {
                 try {
                     let content = readFileSync(filePath, 'utf-8');
                     let fragment = parse(content);
-
-                    console.log('fragment');
-                    console.log(fragment);
 
                     // Process the entire template
                     processTemplate(fragment, locals);
