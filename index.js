@@ -82,22 +82,26 @@ function viteHTMLIncludes(options = {}) {
         });
     }
 
-    function replaceLocals(fragment, locals) {
-        const variableRegex = /\{\{\s*(\w+)\s*\}\}/g; // Regex to match {{variableName}}
+    function replaceVariables(fragment, locals) {
+        const variableRegex = /\{\{\s*(\w+)\s*\}\}/g; // Regex to match {{variableName}}, {{ variableName }}
         fragment.querySelectorAll('*').forEach(node => {
-            
-            if (node.nodeType === 1) { 
-                // Replace variables in text content
-                let textContent = node.textContent;
-                node.textContent = textContent.replace(variableRegex, (match, variableName) => {
+            console.log('----------------------------------------');
+            console.log('node');
+            console.log(node.innerHTML);
+            // Replace variables in text content
+            if (node.nodeType === 3 || node.nodeType === 1) { // Node is a text node
+                node.innerHTML = node.innerHTML.replace(variableRegex, (match, variableName) => {
                     return locals[variableName] !== undefined ? locals[variableName] : match;
                 });
-
-                // Replace variables in attributes
+            } 
+            // Replace variables in element's attributes if node is an element
+            if (node.nodeType === 1) {
                 Object.keys(node.attributes).forEach(attr => {
-                    node.setAttribute(attr, node.attributes[attr].replace(variableRegex, (match, variableName) => {
+                    let attrValue = node.getAttribute(attr);
+                    let replacedAttrValue = attrValue.replace(variableRegex, (match, variableName) => {
                         return locals[variableName] !== undefined ? locals[variableName] : match;
-                    }));
+                    });
+                    node.setAttribute(attr, replacedAttrValue);
                 });
             }
         });
@@ -121,10 +125,6 @@ function viteHTMLIncludes(options = {}) {
         processConditionals(fragment, locals);
         processSwitchCases(fragment, locals);
         processEachLoops(fragment, locals);
-
-        if(Object.keys(locals).length != 0) {
-            replaceLocals(fragment, locals); //Replace the variables
-        }
     }
 
     return {
@@ -139,8 +139,6 @@ function viteHTMLIncludes(options = {}) {
 
             const root = parse(html);
             root.querySelectorAll('include').forEach(node => {
-                console.log(node);
-                console.log('node');
                 const src = node.getAttribute('src');
                 const localsString = node.getAttribute('locals');
                 let locals = {};
@@ -163,7 +161,11 @@ function viteHTMLIncludes(options = {}) {
                     // Process the entire template
                     processTemplate(fragment, locals);
 
+                    if(Object.keys(locals).length != 0) {
+                        replaceVariables(fragment, locals); //Replace the variables
+                    }
                     node.replaceWith(fragment);
+                    
                 } catch (e) {
                     console.error(`Error including file: ${filePath}`, e);
                 }
