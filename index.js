@@ -75,6 +75,7 @@ function viteHTMLIncludes(options = {}) {
                 let loopLocals = { ...locals, [item]: currentItem, [index]: currentIndex };
                 let clonedNode = parse(eachNode.innerHTML);
                 processTemplate(clonedNode, loopLocals);
+                replaceVariables(clonedNode, loopLocals);
                 nodesToReplace.push(...clonedNode.childNodes);
             });
 
@@ -85,9 +86,6 @@ function viteHTMLIncludes(options = {}) {
     function replaceVariables(fragment, locals) {
         const variableRegex = /\{\{\s*(\w+)\s*\}\}/g; // Regex to match {{variableName}}, {{ variableName }}
         fragment.querySelectorAll('*').forEach(node => {
-            console.log('----------------------------------------');
-            console.log('node');
-            console.log(node.innerHTML);
             // Replace variables in text content
             if (node.nodeType === 3 || node.nodeType === 1) { // Node is a text node
                 node.innerHTML = node.innerHTML.replace(variableRegex, (match, variableName) => {
