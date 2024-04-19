@@ -75,10 +75,33 @@ function viteHTMLIncludes(options = {}) {
                 let loopLocals = { ...locals, [item]: currentItem, [index]: currentIndex };
                 let clonedNode = parse(eachNode.innerHTML);
                 processTemplate(clonedNode, loopLocals);
+                replaceVariables(clonedNode, loopLocals);
                 nodesToReplace.push(...clonedNode.childNodes);
             });
 
             eachNode.replaceWith(...nodesToReplace);
+        });
+    }
+
+    function replaceVariables(fragment, locals) {
+        const variableRegex = /\{\{\s*(\w+)\s*\}\}/g; // Regex to match {{variableName}}, {{ variableName }}
+        fragment.querySelectorAll('*').forEach(node => {
+            // Replace variables in text content
+            if (node.nodeType === 3 || node.nodeType === 1) { // Node is a text node
+                node.innerHTML = node.innerHTML.replace(variableRegex, (match, variableName) => {
+                    return locals[variableName] !== undefined ? locals[variableName] : match;
+                });
+            } 
+            // Replace variables in element's attributes if node is an element
+            if (node.nodeType === 1) {
+                Object.keys(node.attributes).forEach(attr => {
+                    let attrValue = node.getAttribute(attr);
+                    let replacedAttrValue = attrValue.replace(variableRegex, (match, variableName) => {
+                        return locals[variableName] !== undefined ? locals[variableName] : match;
+                    });
+                    node.setAttribute(attr, replacedAttrValue);
+                });
+            }
         });
     }
 
@@ -100,7 +123,6 @@ function viteHTMLIncludes(options = {}) {
         processConditionals(fragment, locals);
         processSwitchCases(fragment, locals);
         processEachLoops(fragment, locals);
-        // Implement other template processing functions here if needed
     }
 
     return {
@@ -126,7 +148,6 @@ function viteHTMLIncludes(options = {}) {
                         console.error(`Error parsing locals JSON: ${localsString}`, e);
                     }
                 }
-
                 if (!src) return;
 
                 const filePath = resolve(config.root + componentsPath + src);
@@ -138,7 +159,11 @@ function viteHTMLIncludes(options = {}) {
                     // Process the entire template
                     processTemplate(fragment, locals);
 
+                    if(Object.keys(locals).length != 0) {
+                        replaceVariables(fragment, locals); //Replace the variables
+                    }
                     node.replaceWith(fragment);
+                    
                 } catch (e) {
                     console.error(`Error including file: ${filePath}`, e);
                 }
