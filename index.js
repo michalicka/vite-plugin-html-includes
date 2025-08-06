@@ -91,7 +91,7 @@ function viteHTMLIncludes(options = {}) {
                 node.innerHTML = node.innerHTML.replace(variableRegex, (match, variableName) => {
                     return locals[variableName] !== undefined ? locals[variableName] : match;
                 });
-            } 
+            }
             // Replace variables in element's attributes if node is an element
             if (node.nodeType === 1) {
                 Object.keys(node.attributes).forEach(attr => {
@@ -125,6 +125,44 @@ function viteHTMLIncludes(options = {}) {
         processEachLoops(fragment, locals);
     }
 
+function processIncludes(fragment) {
+    fragment.querySelectorAll('include').forEach(includeNode => {
+        const src = includeNode.getAttribute('src');
+        const localsString = includeNode.getAttribute('locals');
+        let locals = {};
+
+        if (localsString) {
+            try {
+                locals = JSON.parse(localsString);
+            } catch (e) {
+                console.error(`Error parsing locals JSON: ${localsString}`, e);
+            }
+        }
+        if (!src) return;
+
+        const filePath = resolve(config.root + componentsPath + src);
+
+        try {
+            let content = readFileSync(filePath, 'utf-8');
+            content = ensureClosedIncludeTags(content);
+            let nestedFragment = parse(content);
+
+            processTemplate(nestedFragment, locals);
+            if (Object.keys(locals).length !== 0) {
+                replaceVariables(nestedFragment, locals);
+            }
+
+            // 🔁 Recurse into nested includes
+            processIncludes(nestedFragment);
+
+            includeNode.replaceWith(nestedFragment);
+
+        } catch (e) {
+            console.error(`Error including file: ${filePath}`, e);
+        }
+    });
+}
+
     return {
         name: 'vite-plugin-html-includes',
         enforce: 'pre',
@@ -136,38 +174,7 @@ function viteHTMLIncludes(options = {}) {
             html = ensureClosedIncludeTags(html);
 
             const root = parse(html);
-            root.querySelectorAll('include').forEach(node => {
-                const src = node.getAttribute('src');
-                const localsString = node.getAttribute('locals');
-                let locals = {};
-
-                if (localsString) {
-                    try {
-                        locals = JSON.parse(localsString);
-                    } catch (e) {
-                        console.error(`Error parsing locals JSON: ${localsString}`, e);
-                    }
-                }
-                if (!src) return;
-
-                const filePath = resolve(config.root + componentsPath + src);
-
-                try {
-                    let content = readFileSync(filePath, 'utf-8');
-                    let fragment = parse(content);
-
-                    // Process the entire template
-                    processTemplate(fragment, locals);
-
-                    if(Object.keys(locals).length != 0) {
-                        replaceVariables(fragment, locals); //Replace the variables
-                    }
-                    node.replaceWith(fragment);
-                    
-                } catch (e) {
-                    console.error(`Error including file: ${filePath}`, e);
-                }
-            });
+            processIncludes(root);
 
             return root.toString();
         }
